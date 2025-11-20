@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CustomButton extends StatelessWidget {
-  final String text;
+  final String? text;
   final VoidCallback onTap;
   final double? width;
   final double? height;
@@ -11,10 +11,11 @@ class CustomButton extends StatelessWidget {
   final BoxBorder? border;
   final TextStyle? textStyle;
   final bool isLoading;
+  final Widget? icon;
 
   const CustomButton({
     super.key,
-    required this.text,
+    this.text,
     required this.onTap,
     this.width,
     this.height = 56.0,
@@ -24,11 +25,16 @@ class CustomButton extends StatelessWidget {
     this.border,
     this.textStyle,
     this.isLoading = false,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final contentColor = textColor ?? theme.colorScheme.onPrimary;
+
+    // Проверяем, есть ли текст
+    final bool hasText = text != null && text!.isNotEmpty;
 
     return Material(
       color: Colors.transparent,
@@ -49,17 +55,33 @@ class CustomButton extends StatelessWidget {
                     height: 24,
                     width: 24,
                     child: CircularProgressIndicator(
-                      color: textColor ?? theme.colorScheme.onPrimary,
+                      color: contentColor,
                       strokeWidth: 2,
                     ),
                   )
-                : Text(
-                    text,
-                    style: textStyle ??
-                        theme.textTheme.titleMedium?.copyWith(
-                          color: textColor ?? theme.colorScheme.onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                : IconTheme(
+                    data: IconThemeData(color: contentColor, size: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (icon != null) icon!,
+
+                        // ИСПРАВЛЕНИЕ: Добавляем отступ ТОЛЬКО если есть и иконка, и текст
+                        if (icon != null && hasText) const SizedBox(width: 8),
+
+                        if (hasText)
+                          Text(
+                            text!,
+                            style:
+                                textStyle ??
+                                theme.textTheme.titleMedium?.copyWith(
+                                  color: contentColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                      ],
+                    ),
                   ),
           ),
         ),
