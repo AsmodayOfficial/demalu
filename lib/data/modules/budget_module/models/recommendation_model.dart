@@ -63,3 +63,34 @@ class WeatherData {
       _$WeatherDataFromJson(json);
   Map<String, dynamic> toJson() => _$WeatherDataToJson(this);
 }
+
+class Country {
+  final int id;
+  final String name;
+
+  Country({required this.id, required this.name});  
+  
+  factory Country.fromJson(Map<String, dynamic> json) {
+    return Country(
+      id: json['id'] as int, // Assuming 'id' is an integer field
+      name: json['name'] as String, // Assuming 'name' is a string field
+    );
+  }
+}
+
+class City {
+  final int id;
+  final int countryId;
+  final String name;
+  City({required this.id, required this.countryId, required this.name});
+
+    
+  factory City.fromJson(Map<String, dynamic> json) {
+    return City(
+      id: json['id'] as int,
+      countryId: json['countryId'] as int,
+      name: json['name'] as String,
+    );
+  }
+
+}

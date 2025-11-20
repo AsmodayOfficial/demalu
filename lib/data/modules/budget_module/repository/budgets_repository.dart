@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'package:demalu/data/api/dio_client.dart';
 import 'package:demalu/data/modules/budget_module/models/recommendation_model.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
+import 'package:demalu/data/api/api_config.dart';
+
 
 class BudgetsRepository {
   final gemini = Gemini.instance;
+  final DioClient _dioClient = DioClient();
 
   Future<RecommendationModel?> getRecommendations(String country, String city, DateTime date, int minPrice, int maxPrice, String? activityType) async {
     try {
@@ -49,6 +53,46 @@ class BudgetsRepository {
     } catch (e) {
       log('GEMINI API ERROR: $e');
       return null;
+    }
+  }
+
+  Future<List<Country>> getCountries() async {
+    try {
+      final response = await _dioClient.dio.get(
+        ApiConfig.countries,
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> countryJsonList = response.data;
+        final List<Country> countries = countryJsonList
+          .map((jsonItem) => Country.fromJson(jsonItem as Map<String, dynamic>))
+          .toList();
+
+        return countries;
+      } else {
+        throw Exception('Failed to load countries');
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch countries: $e');
+    }
+  }
+
+  Future<List<City>> getCities(int countryId) async {
+    try {
+      final response = await _dioClient.dio.get(
+        ApiConfig.getCitiesByid(countryId),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> cityJsonList = response.data;
+        final List<City> cities = cityJsonList
+          .map((jsonItem) => City.fromJson(jsonItem as Map<String, dynamic>))
+          .toList();
+
+        return cities;
+      } else {
+        throw Exception('Failed to load cities');
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch cities: $e');
     }
   }
 }
