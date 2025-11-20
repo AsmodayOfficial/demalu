@@ -1,7 +1,10 @@
 import 'package:demalu/core/color_log.dart';
+import 'package:demalu/data/auth/auth_service.dart';
+import 'package:demalu/ui/screens/home/home_screen.dart'; 
 import 'package:demalu/ui/widgets/custom_button.dart';
 import 'package:demalu/ui/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,12 +14,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final AuthService _authService = AuthService(); 
+
   final _loginUsernameController = TextEditingController();
   final _loginPasswordController = TextEditingController();
 
   final _regUsernameController = TextEditingController();
   final _regPasswordController = TextEditingController();
   final _regConfirmPasswordController = TextEditingController();
+  final _regPhoneController = TextEditingController(); 
+
+  bool _isLoading = false; 
 
   @override
   void dispose() {
@@ -25,7 +33,89 @@ class _LoginScreenState extends State<LoginScreen> {
     _regUsernameController.dispose();
     _regPasswordController.dispose();
     _regConfirmPasswordController.dispose();
+    _regPhoneController.dispose();
     super.dispose();
+  }
+
+  // Метод для показа ошибок
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  // Логика входа
+  Future<void> _handleLogin() async {
+    if (_loginUsernameController.text.isEmpty || _loginPasswordController.text.isEmpty) {
+      _showError("Заполните все поля");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await _authService.login(
+        _loginUsernameController.text,
+        _loginPasswordController.text,
+      );
+
+      if (success && mounted) {
+        colorLog("Login success", color: 'green');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      if (e is DioException) {
+         _showError(e.response?.data['detail'] ?? "Ошибка авторизации");
+      } else {
+        _showError("Произошла ошибка");
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Логика регистрации
+  Future<void> _handleRegister() async {
+    if (_regUsernameController.text.isEmpty ||
+        _regPasswordController.text.isEmpty ||
+        _regPhoneController.text.isEmpty) {
+      _showError("Заполните все поля");
+      return;
+    }
+
+    if (_regPasswordController.text != _regConfirmPasswordController.text) {
+      _showError("Пароли не совпадают");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await _authService.register(
+        _regUsernameController.text,
+        _regPasswordController.text,
+        _regPhoneController.text,
+      );
+
+      if (success && mounted) {
+        colorLog("Register success", color: 'green');
+        // После регистрации сразу переходим на главный экран (если токен вернулся)
+        // Или можно показать уведомление и переключить на вкладку входа
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      if (e is DioException) {
+         _showError(e.response?.data['detail'] ?? "Ошибка регистрации");
+      } else {
+        _showError("Произошла ошибка: $e");
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -88,7 +178,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 Expanded(
                   child: TabBarView(
-                    children: [_buildLoginForm(), _buildRegisterForm()],
+                    children: [
+                      _buildLoginForm(),
+                      _buildRegisterForm()
+                    ],
                   ),
                 ),
               ],
@@ -120,9 +213,8 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 30),
           CustomButton(
             text: "Войти",
-            onTap: () {
-              colorLog("Login clicked", color: 'green');
-            },
+            isLoading: _isLoading, // Показываем индикатор загрузки
+            onTap: _handleLogin,
           ),
         ],
       ),
@@ -138,6 +230,15 @@ class _LoginScreenState extends State<LoginScreen> {
             hint: "Username",
             controller: _regUsernameController,
             prefixIcon: const Icon(Icons.person_outline),
+          ),
+          const SizedBox(height: 20),
+           // --- НОВОЕ ПОЛЕ: ТЕЛЕФОН ---
+          CustomTextField(
+            label: "Номер телефона",
+            hint: "+77771234567",
+            controller: _regPhoneController,
+            textInputType: TextInputType.phone,
+            prefixIcon: const Icon(Icons.phone_outlined),
           ),
           const SizedBox(height: 20),
           CustomTextField(
@@ -159,10 +260,10 @@ class _LoginScreenState extends State<LoginScreen> {
           CustomButton(
             text: "Зарегистрироваться",
             backgroundColor: Colors.black,
-            onTap: () {
-              colorLog("Register clicked", color: 'green');
-            },
+            isLoading: _isLoading, // Показываем индикатор загрузки
+            onTap: _handleRegister,
           ),
+          const SizedBox(height: 20),
         ],
       ),
     );
