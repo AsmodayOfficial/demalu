@@ -237,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
             label: "Номер телефона",
             hint: "+77771234567",
             controller: _regPhoneController,
-            textInputType: TextInputType.phone,
+            keyboardType: TextInputType.phone,
             prefixIcon: const Icon(Icons.phone_outlined),
           ),
           const SizedBox(height: 20),
