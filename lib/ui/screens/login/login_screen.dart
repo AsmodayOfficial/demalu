@@ -105,14 +105,14 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           CustomTextField(
             label: "Имя пользователя",
-            hint: "Введите ваш никнейм",
+            hint: "Username",
             controller: _loginUsernameController,
             prefixIcon: const Icon(Icons.person_outline),
           ),
           const SizedBox(height: 20),
           CustomTextField(
             label: "Пароль",
-            hint: "Введите пароль",
+            hint: "Password",
             isPassword: true,
             controller: _loginPasswordController,
             prefixIcon: const Icon(Icons.lock_outline),
@@ -135,14 +135,14 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           CustomTextField(
             label: "Имя пользователя",
-            hint: "Придумайте никнейм",
+            hint: "Username",
             controller: _regUsernameController,
             prefixIcon: const Icon(Icons.person_outline),
           ),
           const SizedBox(height: 20),
           CustomTextField(
             label: "Пароль",
-            hint: "Придумайте пароль",
+            hint: "Password",
             isPassword: true,
             controller: _regPasswordController,
             prefixIcon: const Icon(Icons.lock_outline),
@@ -150,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 20),
           CustomTextField(
             label: "Подтвердите пароль",
-            hint: "Повторите пароль",
+            hint: "Confirm Password",
             isPassword: true,
             controller: _regConfirmPasswordController,
             prefixIcon: const Icon(Icons.lock_outline),
