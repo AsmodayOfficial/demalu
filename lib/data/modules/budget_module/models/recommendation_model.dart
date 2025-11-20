@@ -27,7 +27,8 @@ class PlaceRecommendation {
   final String type; // Например: 'Природная достопримечательность', 'Музей', 'Кафе'
   final double latitude;
   final double longitude;
-  final WeatherData weather;
+  final String weather;
+  // final WeatherData weather;
   final String recommendationText; // Советы (одежда, что взять и т.п.)
 
   PlaceRecommendation({

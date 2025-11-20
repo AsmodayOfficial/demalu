@@ -31,7 +31,7 @@ PlaceRecommendation _$PlaceRecommendationFromJson(Map<String, dynamic> json) =>
       type: json['type'] as String,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
-      weather: WeatherData.fromJson(json['weather'] as Map<String, dynamic>),
+      weather: json['weather'] as String,
       recommendationText: json['recommendationText'] as String,
     );
 
