@@ -1,6 +1,8 @@
 import 'package:demalu/data/modules/budget_module/models/recommendation_model.dart';
 import 'package:demalu/data/modules/budget_module/service/budgets_service.dart';
+import 'package:demalu/ui/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 
@@ -15,13 +17,27 @@ class _BudgetScreenState extends State<BudgetScreen> {
   bool _isLoading = false;
   RangeValues _budgetRange = const RangeValues(0, 1000000);
 
-  RecommendationModel? _recommendationResult;
+  late final TextEditingController _minBudgetController;
+  late final TextEditingController _maxBudgetController;
+
+  // RecommendationModel? _recommendationResult;
 
   @override
   void initState() {
     super.initState();
-    _fetchRecommendations();
+    _minBudgetController = TextEditingController(text: "0");
+    _maxBudgetController = TextEditingController(text: "1000000");
+
+    // _fetchRecommendations();
   }
+
+  @override
+  void dispose() {
+    _minBudgetController.dispose();
+    _maxBudgetController.dispose();
+    super.dispose();
+  }
+
 
   Future<void> _fetchRecommendations() async {
     final budgetsService = context.read<BudgetsService>();
@@ -39,7 +55,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
     if (mounted) {
       setState(() {
-        _recommendationResult = result;
+        // _recommendationResult = result;
         _isLoading = false;
       });
     }
@@ -51,7 +67,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (false) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -63,6 +79,15 @@ class _BudgetScreenState extends State<BudgetScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Row(children: [
+                Expanded(
+                  child: CustomTextField(label: "Минимальный бюджет", controller: _minBudgetController),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CustomTextField(label: "Максимальный бюджет", controller: _maxBudgetController),
+                ),
+              ]),
               RangeSlider(
                 values: _budgetRange,
                 min: 0,
@@ -75,6 +100,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 onChanged: (RangeValues values) => {
                 setState(() {
                   _budgetRange = values;
+                  _minBudgetController.text = values.start.round().toString();
+                  _maxBudgetController.text = values.end.round().toString();
                 })
               })
             ],
