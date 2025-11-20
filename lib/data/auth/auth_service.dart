@@ -1,3 +1,4 @@
+import 'package:demalu/core/color_log.dart';
 import 'package:demalu/data/api/api_config.dart';
 import 'package:demalu/data/api/dio_client.dart';
 import 'package:demalu/data/auth/storage_service.dart';
@@ -12,18 +13,15 @@ class AuthService {
     try {
       final response = await _dioClient.dio.post(
         ApiConfig.loginEndpoint,
-        data: {
-          "username": username,
-          "password": password,
-        },
+        data: {"username": username, "password": password},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
-        final accessToken = data['access_token'];
-        final refreshToken = data['refresh_token'];
+        final accessToken = data['accessToken'];
+        final refreshToken = data['refreshToken'];
 
-        // Сохраняем токены
+
         await _storageService.saveTokens(
           accessToken: accessToken,
           refreshToken: refreshToken,
@@ -32,9 +30,8 @@ class AuthService {
       }
       return false;
     } on DioException catch (e) {
-      // Можно добавить обработку конкретных ошибок (401, 400 и т.д.)
-      print('Login error: ${e.response?.data ?? e.message}');
-      rethrow; // Пробрасываем ошибку, чтобы показать Snackbar в UI
+      colorLog('Login error: ${e.response?.data ?? e.message}', color: 'red');
+      rethrow; 
     }
   }
 
@@ -43,22 +40,18 @@ class AuthService {
     try {
       final response = await _dioClient.dio.post(
         ApiConfig.registerEndpoint,
-        data: {
-          "username": username,
-          "password": password,
-          "phone": phone,
-        },
+        data: {"username": username, "password": password, "phone": phone},
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
-        
+
         // Если бэкенд сразу возвращает токены после регистрации
-        if (data['access_token'] != null) {
-           final accessToken = data['access_token'];
-           final refreshToken = data['refresh_token'];
-           
-           await _storageService.saveTokens(
+        if (data['accessToken'] != null) {
+          final accessToken = data['accessToken'];
+          final refreshToken = data['refreshToken'];
+
+          await _storageService.saveTokens(
             accessToken: accessToken,
             refreshToken: refreshToken,
           );
@@ -67,7 +60,10 @@ class AuthService {
       }
       return false;
     } on DioException catch (e) {
-      print('Register error: ${e.response?.data ?? e.message}');
+      colorLog(
+        'Register error: ${e.response?.data ?? e.message}',
+        color: 'red',
+      );
       rethrow;
     }
   }
@@ -78,7 +74,7 @@ class AuthService {
       // Отправляем запрос на логаут (если требуется бэкендом)
       await _dioClient.dio.post(ApiConfig.logoutEndpoint);
     } catch (e) {
-      print("Logout error (ignoring): $e");
+      colorLog("Logout error (ignoring): $e", color: 'red');
     } finally {
       // В любом случае удаляем токены локально
       await _storageService.clearTokens();

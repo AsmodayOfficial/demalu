@@ -1,3 +1,5 @@
+import 'package:demalu/data/modules/map_module/service/maps_service.dart'; // Импорт сервиса
+import 'package:demalu/ui/screens/room/current_room/current_room_screen.dart';
 import 'package:demalu/ui/screens/room/tab_rooms/private_rooms_screen.dart';
 import 'package:demalu/ui/screens/room/tab_rooms/public_rooms_screen.dart';
 import 'package:demalu/ui/widgets/custom_appbar.dart';
@@ -12,14 +14,75 @@ class RoomScreen extends StatefulWidget {
 }
 
 class _RoomScreenState extends State<RoomScreen> {
+  final MapsService _mapsService = MapsService();
+  
+  // Состояние: находимся ли мы в режиме карты (в комнате)
+  bool _isMapMode = false; 
+  bool _isLoading = true; // Для первоначальной проверки
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialRoomState();
+  }
+
+  // Проверяем при старте, находится ли юзер уже в комнате
+  Future<void> _checkInitialRoomState() async {
+    try {
+      final room = await _mapsService.getMyRoom();
+      if (room != null) {
+        if (mounted) {
+          setState(() {
+            _isMapMode = true;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error checking room: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Метод для переключения на карту (передадим его в PrivateRoomsScreen)
+  void _switchToMap() {
+    setState(() {
+      _isMapMode = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Если идет проверка, можно показать загрузку или пустой контейнер
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
+    // Если мы в режиме карты -> Показываем CurrentRoomScreen
+    if (_isMapMode) {
+      return const CurrentRoomScreen();
+      // В будущем, если нужно будет выйти из комнаты, CurrentRoomScreen
+      // должен будет принять callback типа onLeave: () => setState(() => _isMapMode = false)
+    }
+
+    // Иначе -> Показываем Табы
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: CustomAppBar(title: 'Места рядом'),
       body: CustomSlidingTabs(
         firstTabScreen: const PublicRoomsScreen(),
-        secondTabScreen: const PrivateRoomsScreen(),
+        // Передаем колбэк в PrivateRoomsScreen
+        secondTabScreen: PrivateRoomsScreen(
+          onJoinSuccess: _switchToMap, 
+        ),
         firstTabTitle: 'Публичные комнаты',
         secondTabTitle: 'Войти в комнату',
       ),

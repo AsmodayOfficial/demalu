@@ -11,4 +11,7 @@ class ApiConfig {
     return '$countries/$countryId/cities';
   }
 
+  static const String roomsEndpoint = '/api/v1/rooms';
+  static const String joinRoomEndpoint = '/api/v1/rooms/join';
+  static const String myRoomEndpoint = '/api/v1/rooms/my';
 }

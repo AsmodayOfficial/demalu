@@ -1,3 +1,4 @@
+import 'package:demalu/data/auth/storage_service.dart';
 import 'package:demalu/data/modules/budget_module/service/budgets_service.dart';
 import 'package:demalu/ui/screens/home/home_screen.dart';
 import 'package:demalu/ui/screens/login/login_screen.dart';
@@ -13,12 +14,13 @@ void main() async {
   await dotenv.load(fileName: ".env");
   final geminiApiKey = dotenv.get("GEMINI_API_KEY");
   Gemini.init(apiKey: geminiApiKey, enableDebugging: false);
+  await StorageService.instance.init();
 
   runApp(MultiProvider(
       providers: [
         Provider<BudgetsService>(create: (context) => BudgetsService()),
       ],
-      child: const MyApp(),
+      child: const MyApp(), 
     ),
   );
 }
@@ -32,7 +34,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+      home: const LoginScreen(),
     );
   }
 }
