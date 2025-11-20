@@ -1,3 +1,4 @@
+import 'package:demalu/ui/widgets/custom_appbar.dart';
 import 'package:flutter/material.dart';
 
 class ReviewsScreen extends StatefulWidget {
@@ -10,6 +11,9 @@ class ReviewsScreen extends StatefulWidget {
 class _ReviewsScreenState extends State<ReviewsScreen> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(
+      appBar: CustomAppBar(title: 'Отзывы'),
+      body: const Center(child: Text('Экран Отзывов')),
+    );
   }
 }
