@@ -1,3 +1,4 @@
+import 'package:demalu/ui/screens/room/current_room/current_room_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:demalu/ui/screens/room/room_screen.dart';
 import 'package:demalu/ui/screens/budget/budget_screen.dart';
@@ -14,7 +15,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = const [
-    RoomScreen(),
+    //RoomScreen(),
+    CurrentRoomScreen(),
     ReviewsScreen(),
     BudgetScreen(),
   ];

@@ -1,4 +1,6 @@
+import 'package:demalu/core/color_log.dart';
 import 'package:demalu/ui/styles/styles.dart';
+import 'package:demalu/ui/widgets/custom_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
@@ -18,7 +20,21 @@ class RoomCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CustomModal(
+            title: title,
+            content: 'Вы действительно хотите войти в комнату "$title"?',
+            confirmText: 'Войти',
+            onConfirm: () {
+              colorLog('Пользователь вошел в комнату $title', color: 'green');
+            },
+          );
+        },
+      );
+      },
       child: Card(
         color: Colors.white,
         margin: const EdgeInsets.symmetric(horizontal: 16),
