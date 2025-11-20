@@ -5,8 +5,8 @@ class StorageService {
 
   late SharedPreferences _prefs;
 
-  final _keyAccessToken = 'access_token';
-  final _keyRefreshToken = 'refresh_token';
+  final _keyAccessToken = 'accessToken';
+  final _keyRefreshToken = 'refreshToken';
 
 
   StorageService._internal();

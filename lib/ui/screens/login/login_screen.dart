@@ -232,7 +232,6 @@ class _LoginScreenState extends State<LoginScreen> {
             prefixIcon: const Icon(Icons.person_outline),
           ),
           const SizedBox(height: 20),
-           // --- НОВОЕ ПОЛЕ: ТЕЛЕФОН ---
           CustomTextField(
             label: "Номер телефона",
             hint: "+77771234567",
