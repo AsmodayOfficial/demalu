@@ -11,6 +11,11 @@ class PublicRoomsScreen extends StatefulWidget {
 
 class _PublicRoomsScreenState extends State<PublicRoomsScreen> {
   int itemCount = 10;
+  int countMembers = 3;
+  int maxMembers = 5;
+  String roomTitle = "Горнолыжный спорт";
+  String roomSubtitle = "Активный отдых на свежем воздухе";
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -26,9 +31,14 @@ class _PublicRoomsScreenState extends State<PublicRoomsScreen> {
         const SizedBox(height: 16),
         Expanded(
           child: ListView.builder(
-            itemCount: 10, // Пример количества комнат
+            itemCount: 10,
             itemBuilder: (context, index) {
-              return RoomCardWidget();
+              return RoomCardWidget(
+                title: roomTitle,
+                subtitle: roomSubtitle,
+                countMembers: countMembers,
+                maxMembers: maxMembers,
+              );
             },
           ),
         ),
