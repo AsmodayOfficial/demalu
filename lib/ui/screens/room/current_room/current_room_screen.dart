@@ -5,6 +5,7 @@ import 'package:demalu/data/modules/map_module/service/location_service.dart';
 import 'package:demalu/data/modules/map_module/service/maps_service.dart';
 import 'package:demalu/data/modules/rooms_module/models/rooms_model.dart';
 import 'package:demalu/ui/screens/home/home_screen.dart';
+import 'package:demalu/ui/screens/room/proposals/create_proposal_screen.dart';
 import 'package:demalu/ui/styles/styles.dart';
 import 'package:demalu/ui/widgets/custom_appbar.dart';
 import 'package:demalu/ui/widgets/custom_button.dart';
@@ -32,7 +33,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
   bool _isLoading = true;
 
   final Map<int, MemberLocation> _otherMembers = {};
-  
+
   StreamSubscription<Position>? _positionStreamSubscription;
   StreamSubscription<MemberLocation>? _socketLocationSubscription;
   StreamSubscription<List<MemberLocation>>? _socketInitialSubscription;
@@ -59,7 +60,9 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
 
     await _socketService.connect();
 
-    _socketInitialSubscription = _socketService.initialLocationsStream.listen((members) {
+    _socketInitialSubscription = _socketService.initialLocationsStream.listen((
+      members,
+    ) {
       if (mounted) {
         setState(() {
           _otherMembers.clear();
@@ -71,10 +74,12 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
     });
 
     // 4. Слушаем обновления перемещений
-    _socketLocationSubscription = _socketService.locationStream.listen((member) {
+    _socketLocationSubscription = _socketService.locationStream.listen((
+      member,
+    ) {
       if (mounted) {
         setState(() {
-          _otherMembers[member.userId] = member; 
+          _otherMembers[member.userId] = member;
         });
       }
     });
@@ -84,24 +89,25 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
       distanceFilter: 5,
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings)
-        .listen((Position position) {
-      
-      final newPos = LatLng(position.latitude, position.longitude);
-      
-      if (mounted) {
-        setState(() {
-          _currentPosition = newPos;
-          _isLoading = false;
-        });
-      }
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) {
+            final newPos = LatLng(position.latitude, position.longitude);
 
-      _socketService.sendLocation(
-        position.latitude, 
-        position.longitude, 
-        position.accuracy
-      );
-    });
+            if (mounted) {
+              setState(() {
+                _currentPosition = newPos;
+                _isLoading = false;
+              });
+            }
+
+            _socketService.sendLocation(
+              position.latitude,
+              position.longitude,
+              position.accuracy,
+            );
+          },
+        );
   }
 
   Future<bool> _checkPermissions() async {
@@ -153,7 +159,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
       );
     }
   }
-  
+
   void _showLeaveConfirmation() {
     showDialog(
       context: context,
@@ -161,71 +167,75 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
         title: "Выход",
         content: "Вы действительно хотите покинуть комнату?",
         confirmText: "Выйти",
-        onConfirm: _handleLeaveRoom, 
+        onConfirm: _handleLeaveRoom,
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
-        title: _currentRoom != null ? 'PIN: ${_currentRoom!.pin}' : 'Загрузка...',
+        title: _currentRoom != null
+            ? 'PIN: ${_currentRoom!.pin}'
+            : 'Загрузка...',
         textStyle: AppTextStyles.heading2.copyWith(color: AppColors.primary),
         actions: [
-           if (_currentRoom != null)
+          if (_currentRoom != null)
             IconButton(
               icon: const Icon(Icons.copy, color: AppColors.primary),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: _currentRoom!.pin));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("PIN скопирован"), duration: Duration(seconds: 1)),
+                  const SnackBar(
+                    content: Text("PIN скопирован"),
+                    duration: Duration(seconds: 1),
+                  ),
                 );
               },
-            )
+            ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _currentPosition == null
-              ? const Center(child: Text("Не удалось определить местоположение"))
-              : Column(
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.5,
-                      child: Stack(
+          ? const Center(child: Text("Не удалось определить местоположение"))
+          : Column(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.5,
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: _currentPosition!,
+                          initialZoom: 15.0,
+                        ),
                         children: [
-                          FlutterMap(
-                            mapController: _mapController,
-                            options: MapOptions(
-                              initialCenter: _currentPosition!,
-                              initialZoom: 15.0,
-                            ),
-                            children: [
-                              TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                userAgentPackageName: 'com.example.demalu',
-                              ),
-                              MarkerLayer(
-                                markers: [
-                                  // 1. Мой маркер
-                                  _buildUserMarker(_currentPosition!, isMe: true),
-                                  
-                                  // 2. Маркеры других участников из сокета
-                                  ..._otherMembers.values.map((member) {
-                                    return _buildUserMarker(
-                                      LatLng(member.latitude, member.longitude),
-                                      isMe: false,
-                                      username: member.username, // Передаем имя
-                                    );
-                                  }).toList(),
-                                ],
-                              ),
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.example.demalu',
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              // 1. Мой маркер
+                              _buildUserMarker(_currentPosition!, isMe: true),
+
+                              // 2. Маркеры других участников из сокета
+                              ..._otherMembers.values.map((member) {
+                                return _buildUserMarker(
+                                  LatLng(member.latitude, member.longitude),
+                                  isMe: false,
+                                  username: member.username, // Передаем имя
+                                );
+                              }).toList(),
                             ],
                           ),
-                          // ... Кнопки SOS и MyLocation (оставьте как есть)
-                           Positioned(
+                        ],
+                      ),
+                      Positioned(
                         left: 10,
                         top: 10,
                         child: SizedBox(
@@ -263,11 +273,10 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                           ),
                         ),
                       ),
-                        ],
-                      ),
-                    ),
-                    // ... Нижняя панель с кнопками
-                    Expanded(
+                    ],
+                  ),
+                ),
+                Expanded(
                   child: Container(
                     color: Colors.white,
                     padding: const EdgeInsets.all(16.0),
@@ -280,7 +289,25 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                             CustomButton(
                               width: 160,
                               height: 40,
-                              onTap: () {},
+                              onTap: () {
+                                if (_currentRoom == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Подождите, данные комнаты еще загружаются."),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => CreateProposalScreen(
+                                      currentRoomId: _currentRoom!.id,
+                                    ),
+                                  ),
+                                );
+                              },
                               text: 'Предложить место',
                               backgroundColor: AppColors.primary,
                               textStyle: const TextStyle(
@@ -304,8 +331,8 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                     ),
                   ),
                 ),
-                  ],
-                ),
+              ],
+            ),
     );
   }
 
@@ -323,11 +350,16 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
-                boxShadow: const [BoxShadow(blurRadius: 2, color: Colors.black26)],
+                boxShadow: const [
+                  BoxShadow(blurRadius: 2, color: Colors.black26),
+                ],
               ),
               child: Text(
                 username,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -336,7 +368,9 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
             width: isMe ? 32 : 24,
             height: isMe ? 32 : 24,
             decoration: BoxDecoration(
-              color: isMe ? AppColors.primary : Colors.green, // Другие участники зеленым
+              color: isMe
+                  ? AppColors.primary
+                  : Colors.green, // Другие участники зеленым
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
               boxShadow: const [
