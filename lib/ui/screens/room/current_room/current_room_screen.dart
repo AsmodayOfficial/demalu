@@ -1,11 +1,16 @@
+// current_room_screen.dart
+
 import 'dart:async';
 import 'package:demalu/core/color_log.dart';
 import 'package:demalu/data/modules/map_module/models/member_location.dart';
 import 'package:demalu/data/modules/map_module/service/location_service.dart';
 import 'package:demalu/data/modules/map_module/service/maps_service.dart';
+import 'package:demalu/data/modules/rooms_module/models/proposals_model.dart';
 import 'package:demalu/data/modules/rooms_module/models/rooms_model.dart';
+import 'package:demalu/data/modules/rooms_module/proposals_service/proposals_service.dart';
 import 'package:demalu/ui/screens/home/home_screen.dart';
 import 'package:demalu/ui/screens/room/proposals/create_proposal_screen.dart';
+import 'package:demalu/ui/screens/room/widgets/proposals_card_widget.dart';
 import 'package:demalu/ui/styles/styles.dart';
 import 'package:demalu/ui/widgets/custom_appbar.dart';
 import 'package:demalu/ui/widgets/custom_button.dart';
@@ -15,6 +20,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+
+// Вспомогательная функция для форматирования даты
+String _formatDate(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+}
 
 class CurrentRoomScreen extends StatefulWidget {
   const CurrentRoomScreen({super.key});
@@ -27,10 +37,13 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
   final MapController _mapController = MapController();
   final MapsService _mapsService = MapsService();
   final LocationSocketService _socketService = LocationSocketService();
+  final ProposalsService _proposalsService = ProposalsService();
 
   LatLng? _currentPosition;
   Room? _currentRoom;
+  List<Proposal> _proposals = []; 
   bool _isLoading = true;
+  bool _isProposalsLoading = false;
 
   final Map<int, MemberLocation> _otherMembers = {};
 
@@ -41,7 +54,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
   @override
   void initState() {
     super.initState();
-    _loadRoomData();
+    _loadInitialData();
     _initLocationAndSocket();
   }
 
@@ -53,6 +66,75 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
     _socketService.dispose();
     super.dispose();
   }
+
+  // Объединяем загрузку данных комнаты и предложений
+  Future<void> _loadInitialData() async {
+    await _loadRoomData();
+    if (_currentRoom != null) {
+      await _fetchProposals();
+    }
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadRoomData() async {
+    try {
+      final room = await _mapsService.getMyRoom();
+      if (mounted && room != null) {
+        setState(() {
+          _currentRoom = room;
+        });
+      }
+    } catch (e) {
+      colorLog("Error loading room data: $e", color: 'red');
+    }
+  }
+
+  // Новый метод для получения списка предложений
+  Future<void> _fetchProposals() async {
+    if (_currentRoom == null) return;
+
+    if (mounted) setState(() => _isProposalsLoading = true);
+
+    try {
+      final proposals = await _proposalsService.getProposals(_currentRoom!.id);
+      if (mounted) {
+        setState(() {
+          _proposals = proposals;
+        });
+      }
+    } catch (e) {
+      colorLog("Error fetching proposals: ${e.toString()}", color: 'red');
+      if (mounted) {
+        // Убираем вывод SnackBar для 404, чтобы не спамить при старте
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text("Ошибка загрузки предложений: ${e.toString()}"),
+        //   ),
+        // );
+      }
+    } finally {
+      if (mounted) setState(() => _isProposalsLoading = false);
+    }
+  }
+
+  // Новый метод для обработки голосования
+  void _handleVote(int proposalId, bool isLike) async {
+    try {
+      await _proposalsService.vote(proposalId: proposalId, isLike: isLike);
+      // После успешного голосования обновляем список предложений
+      await _fetchProposals();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // ... (методы _initLocationAndSocket, _checkPermissions, _handleLeaveRoom, _showLeaveConfirmation)
 
   Future<void> _initLocationAndSocket() async {
     final hasPermission = await _checkPermissions();
@@ -73,7 +155,6 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
       }
     });
 
-    // 4. Слушаем обновления перемещений
     _socketLocationSubscription = _socketService.locationStream.listen((
       member,
     ) {
@@ -90,24 +171,23 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
     );
 
     _positionStreamSubscription =
-        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-          (Position position) {
-            final newPos = LatLng(position.latitude, position.longitude);
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((Position position) {
+          final newPos = LatLng(position.latitude, position.longitude);
 
-            if (mounted) {
-              setState(() {
-                _currentPosition = newPos;
-                _isLoading = false;
-              });
-            }
+          if (mounted) {
+            setState(() {
+              _currentPosition = newPos;
+            });
+          }
 
-            _socketService.sendLocation(
-              position.latitude,
-              position.longitude,
-              position.accuracy,
-            );
-          },
-        );
+          _socketService.sendLocation(
+            position.latitude,
+            position.longitude,
+            position.accuracy,
+          );
+        });
   }
 
   Future<bool> _checkPermissions() async {
@@ -130,19 +210,6 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
       return false;
     }
     return true;
-  }
-
-  Future<void> _loadRoomData() async {
-    try {
-      final room = await _mapsService.getMyRoom();
-      if (mounted && room != null) {
-        setState(() {
-          _currentRoom = room;
-        });
-      }
-    } catch (e) {
-      colorLog("Error loading room data: $e", color: 'red');
-    }
   }
 
   Future<void> _handleLeaveRoom() async {
@@ -172,6 +239,31 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
     );
   }
 
+  // Обновляем навигацию, чтобы обновить список предложений после создания
+  void _navigateToCreateProposal() async {
+    if (_currentRoom == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Подождите, данные комнаты еще загружаются."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            CreateProposalScreen(currentRoomId: _currentRoom!.id),
+      ),
+    );
+
+    // Если предложение было успешно создано (предполагаем, что pop(true) был вызван)
+    if (result == true) {
+      _fetchProposals();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,14 +288,13 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
             ),
         ],
       ),
-      body: _isLoading
+      body: _isLoading || _currentPosition == null
           ? const Center(child: CircularProgressIndicator())
-          : _currentPosition == null
-          ? const Center(child: Text("Не удалось определить местоположение"))
           : Column(
               children: [
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.5,
+                  // ... (Код карты остается без изменений)
                   child: Stack(
                     children: [
                       FlutterMap(
@@ -220,15 +311,12 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                           ),
                           MarkerLayer(
                             markers: [
-                              // 1. Мой маркер
                               _buildUserMarker(_currentPosition!, isMe: true),
-
-                              // 2. Маркеры других участников из сокета
                               ..._otherMembers.values.map((member) {
                                 return _buildUserMarker(
                                   LatLng(member.latitude, member.longitude),
                                   isMe: false,
-                                  username: member.username, // Передаем имя
+                                  username: member.username,
                                 );
                               }).toList(),
                             ],
@@ -281,6 +369,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                     color: Colors.white,
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -289,25 +378,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                             CustomButton(
                               width: 160,
                               height: 40,
-                              onTap: () {
-                                if (_currentRoom == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Подождите, данные комнаты еще загружаются."),
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => CreateProposalScreen(
-                                      currentRoomId: _currentRoom!.id,
-                                    ),
-                                  ),
-                                );
-                              },
+                              onTap: _navigateToCreateProposal,
                               text: 'Предложить место',
                               backgroundColor: AppColors.primary,
                               textStyle: const TextStyle(
@@ -319,13 +390,48 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+
+                        Expanded(
+                          child: _isProposalsLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : _proposals.isEmpty
+                                  ? const Center(
+                                      child: Text(
+                                        "Нет активных предложений.",
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      itemCount: _proposals.length,
+                                      itemBuilder: (context, index) {
+                                        final proposal = _proposals[index];
+                                        return ProposalsCardWidget(
+                                          title: proposal.proposedName,
+                                          subtitle: proposal.proposedAddress,
+                                          likes: proposal.likes,
+                                          dislikes: proposal.dislikes,
+                                          date: _formatDate(
+                                            proposal.proposedDate,
+                                          ),
+                                          onLike: () =>
+                                              _handleVote(proposal.id, true),
+                                          onDislike: () =>
+                                              _handleVote(proposal.id, false),
+                                        );
+                                      },
+                                    ),
+                        ),
 
                         const SizedBox(height: 20),
-                        CustomButton(
-                          text: "Покинуть комнату",
-                          backgroundColor: Colors.red[100],
-                          textColor: Colors.red,
-                          onTap: _showLeaveConfirmation,
+                        Center(
+                          child: CustomButton(
+                            width: double.infinity,
+                            text: "Покинуть комнату",
+                            backgroundColor: Colors.red[100],
+                            textColor: Colors.red,
+                            onTap: _showLeaveConfirmation,
+                          ),
                         ),
                       ],
                     ),
@@ -339,7 +445,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
   Marker _buildUserMarker(LatLng point, {bool isMe = false, String? username}) {
     return Marker(
       point: point,
-      width: isMe ? 32 : 60, // Чуть шире для других, если будем показывать имя
+      width: isMe ? 32 : 60,
       height: isMe ? 32 : 60,
       child: Column(
         mainAxisSize: MainAxisSize.min,
