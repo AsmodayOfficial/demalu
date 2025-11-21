@@ -28,6 +28,8 @@ class PlaceRecommendation {
   final double latitude;
   final double longitude;
   final String weather;
+  final String map_link;
+  final String estimated_cost;
   // final WeatherData weather;
   final String recommendationText; // Советы (одежда, что взять и т.п.)
 
@@ -37,6 +39,8 @@ class PlaceRecommendation {
     required this.latitude,
     required this.longitude,
     required this.weather,
+    required this.map_link,
+    required this.estimated_cost,
     required this.recommendationText,
   });
 

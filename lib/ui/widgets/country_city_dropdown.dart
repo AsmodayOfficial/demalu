@@ -50,8 +50,15 @@ class _CountryCityDropdownState extends State<CountryCityDropdown> {
 @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Country Dropdown ---
+        Text(
+          "Выберите страну",
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: SizedBox(
@@ -89,6 +96,13 @@ class _CountryCityDropdownState extends State<CountryCityDropdown> {
         ),
 
         // --- City Dropdown ---
+        Text(
+          "Выберите город",
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: SizedBox(

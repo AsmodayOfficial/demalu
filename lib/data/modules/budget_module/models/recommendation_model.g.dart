@@ -32,6 +32,8 @@ PlaceRecommendation _$PlaceRecommendationFromJson(Map<String, dynamic> json) =>
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       weather: json['weather'] as String,
+      map_link: json['map_link'] as String,
+      estimated_cost: json['estimated_cost'] as String,
       recommendationText: json['recommendationText'] as String,
     );
 
@@ -43,6 +45,8 @@ Map<String, dynamic> _$PlaceRecommendationToJson(
   'latitude': instance.latitude,
   'longitude': instance.longitude,
   'weather': instance.weather,
+  'map_link': instance.map_link,
+  'estimated_cost': instance.estimated_cost,
   'recommendationText': instance.recommendationText,
 };
 

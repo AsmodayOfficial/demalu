@@ -29,7 +29,9 @@ class BudgetsRepository {
                   "latitude": 0.00, // Числовой формат!
                   "longitude": 0.00, // Числовой формат!
                   "weather": "Краткое описание погоды (например, 'Солнечно, +20°C', 'Прохладно, без осадков')",
-                  "recommendationText": "Советы и рекомендации, адаптированные под погоду и тип места"
+                  "recommendationText": "Советы и рекомендации, адаптированные под погоду и тип места",
+                  "estimated_cost": "1000-4000",
+                  "map_link": "https://maps.google.com/?cid=13565909931669109964&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQ" // Избегай отправки неработающих ссылок на карты
                 }
             ]
           }""";

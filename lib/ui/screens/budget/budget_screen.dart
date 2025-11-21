@@ -2,7 +2,9 @@ import 'dart:developer';
 
 import 'package:demalu/data/modules/budget_module/models/recommendation_model.dart';
 import 'package:demalu/data/modules/budget_module/service/budgets_service.dart';
+import 'package:demalu/ui/screens/budget/budgets_screen.dart' show RecommendationsPage;
 import 'package:demalu/ui/widgets/country_city_dropdown.dart';
+import 'package:demalu/ui/widgets/custom_appbar.dart';
 import 'package:demalu/ui/widgets/custom_button.dart';
 import 'package:demalu/ui/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
@@ -28,18 +30,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   late final TextEditingController _minBudgetController;
   late final TextEditingController _maxBudgetController;
+  late final TextEditingController _activityTypeController;
 
-  // RecommendationModel? _recommendationResult;
-
+  final _formKey = GlobalKey<FormState>();
+  
   @override
   void initState() {
     super.initState();
     _minBudgetController = TextEditingController(text: "0");
     _maxBudgetController = TextEditingController(text: "1000000");
+    _activityTypeController = TextEditingController();
 
     _minBudgetController.addListener(_onMinBudgetChange);
     _maxBudgetController.addListener(_onMaxBudgetChange);
-    // _fetchRecommendations();
   }
 
   @override
@@ -48,6 +51,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     _maxBudgetController.removeListener(_onMaxBudgetChange);
     _minBudgetController.dispose();
     _maxBudgetController.dispose();
+    _activityTypeController.dispose();
     super.dispose();
   }
 
@@ -99,7 +103,31 @@ class _BudgetScreenState extends State<BudgetScreen> {
     }
   }
 
-  Future<void> _fetchRecommendations() async {
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _getRecommendations() async {
+    if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedCountry == null || _selectedCity == null) {
+      _showErrorSnackbar("Пожалуйста, выберите страну и город.");
+      return;
+    }
+    
+    if (_selectedDate == null) {
+      _showErrorSnackbar("Пожалуйста, выберите дату путешествия.");
+      return;
+    }
+
     final budgetsService = context.read<BudgetsService>();
 
     if(mounted) setState(() => _isLoading = true );
@@ -110,50 +138,98 @@ class _BudgetScreenState extends State<BudgetScreen> {
       _selectedDate!,
       int.parse(_minBudgetController.text),
       int.parse(_maxBudgetController.text),
-      "экстремальный спорт"
+      _activityTypeController.text,
     );
-
+    
     if (mounted) {
       setState(() {
-        // _recommendationResult = result;
         _isLoading = false;
       });
-    }
-  }
 
-  PreferredSizeWidget CustomAppBar({required String title}) {
-    return AppBar(title: Text(title, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.blueGrey);
+      if (result != null) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecommendationsPage(recommendationResult: result),
+          ),
+        );
+      } else {
+        log("Ошибка: Рекомендации не получены.");
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (false) {
-      return const Center(child: CircularProgressIndicator());
-    }
 
     return Scaffold(
       appBar: CustomAppBar(title: 'Бюджет'),
       body: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
+          child: 
+          Form(key: _formKey, child: 
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Column(children: [
-                Text(
-                  _selectedDate != null
-                      ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                      : 'Дата не выбрана',
-                ),
-                OutlinedButton(onPressed: _selectDate, child: const Text('Выбрать дату')),
-              ]),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,  
+                children: [
+                  Text(
+                    "Дата путешествия",
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _selectDate,
+                    child: Text(
+                      _selectedDate != null
+                          ? '${_selectedDate!.day}.${_selectedDate!.month}.${_selectedDate!.year}'
+                          : 'Выберите дату',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),                ]
+              ),
+              SizedBox(height: 16),
               CountryCityDropdown(onSelectionChanged: _onCityCountrySelected,),
               Row(children: [
                 Expanded(
-                  child: CustomTextField(label: "Минимальный бюджет", controller: _minBudgetController),
+                  child: CustomTextField(
+                    label: "Минимальный бюджет",
+                    controller: _minBudgetController,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Обязательное поле';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Введите число';
+                      }
+                      return null;
+                    },
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: CustomTextField(label: "Максимальный бюджет", controller: _maxBudgetController),
+                  child: CustomTextField(
+                    label: "Максимальный бюджет",
+                    controller: _maxBudgetController,
+                    validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Обязательное поле';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Введите число';
+                        }
+                        return null;
+                    },
+                  ),
                 ),
               ]),
               RangeSlider(
@@ -172,10 +248,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   _maxBudgetController.text = values.end.round().toString();
                 })
               }),
-              CustomButton(text: "Далее", isLoading: _isLoading, onTap: () => { })
+              CustomTextField(
+                label: "Тип активности",
+                hint: "Введите тип активности",
+                controller: _activityTypeController
+              ),
+              SizedBox(height: 32),
+              CustomButton(text: "Далее", isLoading: _isLoading, onTap: () => {  _getRecommendations() })
             ],
           ),
-        ),
+        )),
     );
   }
 }
