@@ -10,6 +10,7 @@ import 'package:demalu/data/modules/rooms_module/models/rooms_model.dart';
 import 'package:demalu/data/modules/rooms_module/proposals_service/proposals_service.dart';
 import 'package:demalu/ui/screens/home/home_screen.dart';
 import 'package:demalu/ui/screens/room/proposals/create_proposal_screen.dart';
+import 'package:demalu/ui/screens/room/widgets/proposal_details_modal.dart';
 import 'package:demalu/ui/screens/room/widgets/proposals_card_widget.dart';
 import 'package:demalu/ui/styles/styles.dart';
 import 'package:demalu/ui/widgets/custom_appbar.dart';
@@ -264,6 +265,22 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
     }
   }
 
+  void _showProposalDetails(Proposal proposal) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Позволяет модалке занимать больше места
+      builder: (context) {
+        // Оборачиваем модалку в Padding, чтобы она не закрывала верхний статус-бар
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: ProposalDetailsModal(proposal: proposal),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -414,6 +431,7 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                                           date: _formatDate(
                                             proposal.proposedDate,
                                           ),
+                                          onTap: () => _showProposalDetails(proposal),
                                           onLike: () =>
                                               _handleVote(proposal.id, true),
                                           onDislike: () =>
