@@ -9,32 +9,21 @@ class RoomCardWidget extends StatelessWidget {
   final String? subtitle;
   final int? countMembers;
   final int? maxMembers;
+  final VoidCallback? onTap;
+
   const RoomCardWidget({
     super.key,
     required this.title,
     this.subtitle,
     this.countMembers = 0,
     this.maxMembers = 0,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return CustomModal(
-            title: title,
-            content: 'Вы действительно хотите войти в комнату "$title"?',
-            confirmText: 'Войти',
-            onConfirm: () {
-              colorLog('Пользователь вошел в комнату $title', color: 'green');
-            },
-          );
-        },
-      );
-      },
+      onTap: onTap,
       child: Card(
         color: Colors.white,
         margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -63,15 +52,15 @@ class RoomCardWidget extends StatelessWidget {
                         children: [
                           Text(
                             title,
-                            maxLines: 1, 
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.heading4.copyWith(
                               color: AppColors.primary,
                             ),
                           ),
                           if (subtitle != null) ...[
-                             const SizedBox(height: 4),
-                             Text(
+                            const SizedBox(height: 4),
+                            Text(
                               subtitle!,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -79,14 +68,14 @@ class RoomCardWidget extends StatelessWidget {
                                 color: AppColors.primary,
                               ),
                             ),
-                          ]
+                          ],
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              
+
               const SizedBox(width: 8),
 
               Column(

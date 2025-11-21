@@ -1,4 +1,6 @@
+import 'package:demalu/core/color_log.dart';
 import 'package:demalu/data/modules/map_module/service/maps_service.dart'; // Импорт сервиса
+import 'package:demalu/ui/screens/room/create_room_screen/create_rooms_screen.dart';
 import 'package:demalu/ui/screens/room/current_room/current_room_screen.dart';
 import 'package:demalu/ui/screens/room/tab_rooms/private_rooms_screen.dart';
 import 'package:demalu/ui/screens/room/tab_rooms/public_rooms_screen.dart';
@@ -15,9 +17,9 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   final MapsService _mapsService = MapsService();
-  
+
   // Состояние: находимся ли мы в режиме карты (в комнате)
-  bool _isMapMode = false; 
+  bool _isMapMode = false;
   bool _isLoading = true; // Для первоначальной проверки
 
   @override
@@ -65,26 +67,36 @@ class _RoomScreenState extends State<RoomScreen> {
       );
     }
 
-    // ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
-    // Если мы в режиме карты -> Показываем CurrentRoomScreen
     if (_isMapMode) {
       return const CurrentRoomScreen();
-      // В будущем, если нужно будет выйти из комнаты, CurrentRoomScreen
-      // должен будет принять callback типа onLeave: () => setState(() => _isMapMode = false)
     }
 
-    // Иначе -> Показываем Табы
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: CustomAppBar(title: 'Места рядом'),
       body: CustomSlidingTabs(
-        firstTabScreen: const PublicRoomsScreen(),
-        // Передаем колбэк в PrivateRoomsScreen
-        secondTabScreen: PrivateRoomsScreen(
-          onJoinSuccess: _switchToMap, 
-        ),
+        firstTabScreen: PublicRoomsScreen(onJoinSuccess: _switchToMap),
+        secondTabScreen: PrivateRoomsScreen(onJoinSuccess: _switchToMap),
         firstTabTitle: 'Публичные комнаты',
         secondTabTitle: 'Войти в комнату',
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.white,
+        elevation: 3,
+        onPressed: () async {
+          // Кнопка создания новой комнаты
+          final result = await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const CreateRoomScreen(),
+            ),
+          );
+          // Можно добавить логику обновления состояния после создания комнаты
+          if (result == true) {
+            // Например, обновить список комнат
+            colorLog("Комната создана, можно обновить списки", color: 'green');
+          }
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }

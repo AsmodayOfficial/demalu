@@ -1,8 +1,17 @@
+import 'dart:async';
 import 'package:demalu/core/color_log.dart';
+import 'package:demalu/data/modules/map_module/models/member_location.dart';
+import 'package:demalu/data/modules/map_module/service/location_service.dart';
+import 'package:demalu/data/modules/map_module/service/maps_service.dart';
+import 'package:demalu/data/modules/rooms_module/models/rooms_model.dart';
+import 'package:demalu/ui/screens/home/home_screen.dart';
+import 'package:demalu/ui/screens/room/proposals/create_proposal_screen.dart';
 import 'package:demalu/ui/styles/styles.dart';
 import 'package:demalu/ui/widgets/custom_appbar.dart';
 import 'package:demalu/ui/widgets/custom_button.dart';
+import 'package:demalu/ui/widgets/custom_modal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -16,68 +25,186 @@ class CurrentRoomScreen extends StatefulWidget {
 
 class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
   final MapController _mapController = MapController();
+  final MapsService _mapsService = MapsService();
+  final LocationSocketService _socketService = LocationSocketService();
+
   LatLng? _currentPosition;
+  Room? _currentRoom;
   bool _isLoading = true;
+
+  final Map<int, MemberLocation> _otherMembers = {};
+
+  StreamSubscription<Position>? _positionStreamSubscription;
+  StreamSubscription<MemberLocation>? _socketLocationSubscription;
+  StreamSubscription<List<MemberLocation>>? _socketInitialSubscription;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _loadRoomData();
+    _initLocationAndSocket();
   }
 
-  Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    _socketLocationSubscription?.cancel();
+    _socketInitialSubscription?.cancel();
+    _socketService.dispose();
+    super.dispose();
+  }
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  Future<void> _initLocationAndSocket() async {
+    final hasPermission = await _checkPermissions();
+    if (!hasPermission) return;
+
+    await _socketService.connect();
+
+    _socketInitialSubscription = _socketService.initialLocationsStream.listen((
+      members,
+    ) {
+      if (mounted) {
+        setState(() {
+          _otherMembers.clear();
+          for (var member in members) {
+            _otherMembers[member.userId] = member;
+          }
+        });
+      }
+    });
+
+    // 4. Слушаем обновления перемещений
+    _socketLocationSubscription = _socketService.locationStream.listen((
+      member,
+    ) {
+      if (mounted) {
+        setState(() {
+          _otherMembers[member.userId] = member;
+        });
+      }
+    });
+
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+    );
+
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) {
+            final newPos = LatLng(position.latitude, position.longitude);
+
+            if (mounted) {
+              setState(() {
+                _currentPosition = newPos;
+                _isLoading = false;
+              });
+            }
+
+            _socketService.sendLocation(
+              position.latitude,
+              position.longitude,
+              position.accuracy,
+            );
+          },
+        );
+  }
+
+  Future<bool> _checkPermissions() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() => _isLoading = false);
-      return;
+      return false;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         setState(() => _isLoading = false);
-        return;
+        return false;
       }
     }
-
     if (permission == LocationPermission.deniedForever) {
       setState(() => _isLoading = false);
-      return;
+      return false;
     }
+    return true;
+  }
 
-    Position position = await Geolocator.getCurrentPosition();
-
-    if (mounted) {
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-        _isLoading = false;
-      });
+  Future<void> _loadRoomData() async {
+    try {
+      final room = await _mapsService.getMyRoom();
+      if (mounted && room != null) {
+        setState(() {
+          _currentRoom = room;
+        });
+      }
+    } catch (e) {
+      colorLog("Error loading room data: $e", color: 'red');
     }
+  }
+
+  Future<void> _handleLeaveRoom() async {
+    try {
+      await _mapsService.leaveRoom();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showLeaveConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => CustomModal(
+        title: "Выход",
+        content: "Вы действительно хотите покинуть комнату?",
+        confirmText: "Выйти",
+        onConfirm: _handleLeaveRoom,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Demalu',
+        title: _currentRoom != null
+            ? 'PIN: ${_currentRoom!.pin}'
+            : 'Загрузка...',
         textStyle: AppTextStyles.heading2.copyWith(color: AppColors.primary),
+        actions: [
+          if (_currentRoom != null)
+            IconButton(
+              icon: const Icon(Icons.copy, color: AppColors.primary),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _currentRoom!.pin));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("PIN скопирован"),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _currentPosition == null
           ? const Center(child: Text("Не удалось определить местоположение"))
           : Column(
-              // <--- ИСПОЛЬЗУЕМ COLUMN ВМЕСТО STACK КАК КОРЕНЬ
               children: [
-                // 1. ВЕРХНЯЯ ЧАСТЬ: КАРТА (50% экрана)
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.5,
                   child: Stack(
-                    // Stack нужен только для наложения кнопок НА карту
                     children: [
                       FlutterMap(
                         mapController: _mapController,
@@ -93,25 +220,21 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                           ),
                           MarkerLayer(
                             markers: [
+                              // 1. Мой маркер
                               _buildUserMarker(_currentPosition!, isMe: true),
-                              _buildUserMarker(
-                                LatLng(
-                                  _currentPosition!.latitude + 0.001,
-                                  _currentPosition!.longitude + 0.001,
-                                ),
-                              ),
-                              _buildUserMarker(
-                                LatLng(
-                                  _currentPosition!.latitude - 0.001,
-                                  _currentPosition!.longitude - 0.0005,
-                                ),
-                              ),
+
+                              // 2. Маркеры других участников из сокета
+                              ..._otherMembers.values.map((member) {
+                                return _buildUserMarker(
+                                  LatLng(member.latitude, member.longitude),
+                                  isMe: false,
+                                  username: member.username, // Передаем имя
+                                );
+                              }).toList(),
                             ],
                           ),
                         ],
                       ),
-
-                      // Кнопка SOS
                       Positioned(
                         left: 10,
                         top: 10,
@@ -129,11 +252,9 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                         ),
                       ),
 
-                      // Кнопка Локации
                       Positioned(
                         right: 10,
-                        bottom:
-                            20, // Чуть поднял, чтобы не прилипала к низу карты
+                        bottom: 20,
                         child: SizedBox(
                           width: 50,
                           height: 50,
@@ -147,8 +268,6 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                             onTap: () {
                               if (_currentPosition != null) {
                                 _mapController.move(_currentPosition!, 15);
-                              } else {
-                                _getCurrentLocation();
                               }
                             },
                           ),
@@ -157,29 +276,38 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                     ],
                   ),
                 ),
-
-                // 2. НИЖНЯЯ ЧАСТЬ: КОНТЕНТ
                 Expanded(
-                  // Занимает всё оставшееся место
                   child: Container(
                     color: Colors.white,
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
-                        // Ваш Row, который вызывал ошибку
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Предложения',
-                              style: AppTextStyles
-                                  .heading3, // Добавил стиль для красоты
-                            ),
-                            // ОБЯЗАТЕЛЬНО ограничиваем ширину кнопки или оборачиваем в Flexible
+                            Text('Предложения', style: AppTextStyles.heading3),
                             CustomButton(
-                              width: 160, // <--- ВАЖНО: Фиксированная ширина
-                              height: 40, // Можно сделать поменьше
-                              onTap: () {},
+                              width: 160,
+                              height: 40,
+                              onTap: () {
+                                if (_currentRoom == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Подождите, данные комнаты еще загружаются."),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => CreateProposalScreen(
+                                      currentRoomId: _currentRoom!.id,
+                                    ),
+                                  ),
+                                );
+                              },
                               text: 'Предложить место',
                               backgroundColor: AppColors.primary,
                               textStyle: const TextStyle(
@@ -192,9 +320,13 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
                           ],
                         ),
 
-                        // Здесь дальше будет ваш список комнат (ListView)
                         const SizedBox(height: 20),
-                        const Center(child: Text("Здесь будет список")),
+                        CustomButton(
+                          text: "Покинуть комнату",
+                          backgroundColor: Colors.red[100],
+                          textColor: Colors.red,
+                          onTap: _showLeaveConfirmation,
+                        ),
                       ],
                     ),
                   ),
@@ -204,27 +336,56 @@ class _CurrentRoomScreenState extends State<CurrentRoomScreen> {
     );
   }
 
-  Marker _buildUserMarker(LatLng point, {bool isMe = false}) {
+  Marker _buildUserMarker(LatLng point, {bool isMe = false, String? username}) {
     return Marker(
       point: point,
-      width: isMe ? 32 : 24,
-      height: isMe ? 32 : 24,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : Colors.blue,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 2),
+      width: isMe ? 32 : 60, // Чуть шире для других, если будем показывать имя
+      height: isMe ? 32 : 60,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isMe && username != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: const [
+                  BoxShadow(blurRadius: 2, color: Colors.black26),
+                ],
+              ),
+              child: Text(
+                username,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ],
-        ),
-        child: isMe
-            ? const Icon(Icons.person, size: 16, color: Colors.white)
-            : null,
+          Container(
+            width: isMe ? 32 : 24,
+            height: isMe ? 32 : 24,
+            decoration: BoxDecoration(
+              color: isMe
+                  ? AppColors.primary
+                  : Colors.green, // Другие участники зеленым
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: isMe
+                ? const Icon(Icons.person, size: 16, color: Colors.white)
+                : null,
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ class Room {
   final String name;
   final String? description;
   final bool isPrivate;
+  final String pin;
   final int countMembers;
   final int maxMembers;
 
@@ -11,6 +12,7 @@ class Room {
     required this.name,
     this.description,
     required this.isPrivate,
+    required this.pin,
     required this.countMembers,
     required this.maxMembers,
   });
@@ -21,7 +23,7 @@ class Room {
       name: json['name'] ?? 'Без названия',
       description: json['description'],
       isPrivate: json['isPrivate'] ?? false,
-      // Берем countMembers из корня JSON, если null - ставим 0
+      pin: json['pin'] ?? '',
       countMembers: json['countMembers'] ?? 0, 
       maxMembers: json['maxMembers'] ?? 0,
     );
