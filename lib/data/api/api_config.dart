@@ -14,4 +14,7 @@ class ApiConfig {
   static const String roomsEndpoint = '/api/v1/rooms';
   static const String joinRoomEndpoint = '/api/v1/rooms/join';
   static const String myRoomEndpoint = '/api/v1/rooms/my';
+  static const String leaveRoomEndpoint = '/api/v1/rooms/leave';
+  static const String locationsEndpoint = '/api/v1/locations';
+  static const String socketUrl = '$baseUrl/locations';
 }

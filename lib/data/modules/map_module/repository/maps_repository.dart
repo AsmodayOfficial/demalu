@@ -59,4 +59,21 @@ class MapsRepository {
     }
     return null;
   }
+
+
+  Future<void> leaveRoom() async {
+    try {
+      final response = await _dioClient.dio.delete(ApiConfig.leaveRoomEndpoint);
+
+      // Обычно 200 или 204 означает успешное удаление/выход
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        colorLog("Successfully left the room", color: 'green');
+        return;
+      }
+    } on DioException catch (e) {
+      colorLog("Error leaving room: ${e.response?.data}", color: 'red');
+      throw "Не удалось выйти из комнаты: ${e.message}";
+    }
+  }
+  
 }

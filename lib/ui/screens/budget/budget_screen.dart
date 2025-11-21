@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:demalu/data/modules/budget_module/models/recommendation_model.dart';
 import 'package:demalu/data/modules/budget_module/service/budgets_service.dart';
 import 'package:demalu/ui/widgets/country_city_dropdown.dart';
+import 'package:demalu/ui/widgets/custom_appbar.dart';
 import 'package:demalu/ui/widgets/custom_button.dart';
 import 'package:demalu/ui/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
@@ -121,16 +122,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
     }
   }
 
-  PreferredSizeWidget CustomAppBar({required String title}) {
-    return AppBar(title: Text(title, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.blueGrey);
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (false) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return Scaffold(
       appBar: CustomAppBar(title: 'Бюджет'),
       body: Padding(

@@ -15,9 +15,9 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   final MapsService _mapsService = MapsService();
-  
+
   // Состояние: находимся ли мы в режиме карты (в комнате)
-  bool _isMapMode = false; 
+  bool _isMapMode = false;
   bool _isLoading = true; // Для первоначальной проверки
 
   @override
@@ -65,12 +65,8 @@ class _RoomScreenState extends State<RoomScreen> {
       );
     }
 
-    // ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
-    // Если мы в режиме карты -> Показываем CurrentRoomScreen
     if (_isMapMode) {
       return const CurrentRoomScreen();
-      // В будущем, если нужно будет выйти из комнаты, CurrentRoomScreen
-      // должен будет принять callback типа onLeave: () => setState(() => _isMapMode = false)
     }
 
     // Иначе -> Показываем Табы
@@ -78,11 +74,9 @@ class _RoomScreenState extends State<RoomScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: CustomAppBar(title: 'Места рядом'),
       body: CustomSlidingTabs(
-        firstTabScreen: const PublicRoomsScreen(),
+        firstTabScreen: PublicRoomsScreen(onJoinSuccess: _switchToMap),
         // Передаем колбэк в PrivateRoomsScreen
-        secondTabScreen: PrivateRoomsScreen(
-          onJoinSuccess: _switchToMap, 
-        ),
+        secondTabScreen: PrivateRoomsScreen(onJoinSuccess: _switchToMap),
         firstTabTitle: 'Публичные комнаты',
         secondTabTitle: 'Войти в комнату',
       ),

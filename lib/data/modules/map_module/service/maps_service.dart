@@ -20,4 +20,8 @@ class MapsService {
   Future<Room?> getMyRoom() async {
     return await _mapsRepository.getMyRoom();
   }
+
+  Future<void> leaveRoom() async {
+    await _mapsRepository.leaveRoom();
+  }
 }
